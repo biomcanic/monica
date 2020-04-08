@@ -5,7 +5,6 @@ namespace App\Services\Account\Photo;
 use function Safe\substr;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use function Safe\parse_url;
 use App\Models\Account\Photo;
 use App\Services\BaseService;
 use function Safe\finfo_open;
@@ -46,9 +45,9 @@ class UploadPhoto extends BaseService
      * Upload a photo.
      *
      * @param array $data
-     * @return Photo
+     * @return Photo|null
      */
-    public function execute(array $data)
+    public function execute(array $data): ?Photo
     {
         $this->validate($data);
 
@@ -63,7 +62,7 @@ class UploadPhoto extends BaseService
         }
 
         if (! $array) {
-            return;
+            return null;
         }
 
         return tap(Photo::create($array), function ($photo) use ($contact) {
@@ -76,53 +75,32 @@ class UploadPhoto extends BaseService
      *
      * @return array
      */
-    private function importPhoto($data)
+    private function importPhoto($data): array
     {
         $photo = $data['photo'];
-        $array = [
+
+        return [
             'account_id' => $data['account_id'],
             'original_filename' => $photo->getClientOriginalName(),
-            'filesize' => $photo->getClientSize(),
+            'filesize' => $photo->getSize(),
             'mime_type' => (new \Mimey\MimeTypes)->getMimeType($photo->guessClientExtension()),
+            'new_filename' => $photo->storePublicly('photos', config('filesystems.default')),
         ];
-
-        /*
-         * If the instance uses Cloudinary like Heroku hosting, then the Cloudinary
-         * information needs to be parsed from the environment variable provided by Heroku.
-         * This is done below, added to the $url variable.
-         */
-        if (env('CLOUDINARY_URL')) {
-            $url = parse_url(env('CLOUDINARY_URL'));
-
-            \Cloudinary::config([
-                'cloud_name' => $url['host'],
-                'api_key' => $url['user'],
-                'api_secret' => $url['pass'],
-            ]);
-
-            $uploaded = \Cloudinary\Uploader::upload($_FILES['photo']['tmp_name']);
-            $array['original_filename'] = $uploaded['public_id'];
-            $array['new_filename'] = $uploaded['url'];
-        } else {
-            $array['new_filename'] = $photo->storePublicly('photos', config('filesystems.default'));
-        }
-
-        return $array;
     }
 
     /**
      * Upload the photo.
      *
-     * @return array
+     * @return array|null
      */
-    private function importFile(array $data)
+    private function importFile(array $data): ?array
     {
         $filename = Str::random(40);
 
         try {
             $image = Image::make($data['data']);
         } catch (NotReadableException $e) {
-            return;
+            return null;
         }
 
         $tempfile = $this->storeImage('local', $image, 'temp/'.$filename);
@@ -192,13 +170,9 @@ class UploadPhoto extends BaseService
      */
     private function isBinary(string $data): bool
     {
-        if (is_string($data)) {
-            $mime = finfo_buffer(finfo_open(FILEINFO_MIME_TYPE), $data);
+        $mime = finfo_buffer(finfo_open(FILEINFO_MIME_TYPE), $data);
 
-            return substr($mime, 0, 4) != 'text' && $mime != 'application/x-empty';
-        }
-
-        return false;
+        return substr($mime, 0, 4) != 'text' && $mime != 'application/x-empty';
     }
 
     /**
