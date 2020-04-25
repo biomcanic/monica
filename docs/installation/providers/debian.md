@@ -1,8 +1,17 @@
-# Installing Monica on Debian
+# Installing Monica on Debian <!-- omit in toc -->
 
 <img alt="Logo" src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/Debian-OpenLogo.svg/109px-Debian-OpenLogo.svg.png" width="96" height="127" />
 
 Monica can run on Debian Buster.
+
+- [Prerequisites](#prerequisites)
+- [Installation steps](#installation-steps)
+  - [1. Clone the repository](#1-clone-the-repository)
+  - [2. Setup the database](#2-setup-the-database)
+  - [3. Configure Monica](#3-configure-monica)
+  - [4. Configure cron job](#4-configure-cron-job)
+  - [5. Configure Apache webserver](#5-configure-apache-webserver)
+  - [Final step](#final-step)
 
 ## Prerequisites
 
@@ -108,7 +117,10 @@ exit
 `cd /var/www/monica` then run these steps with `sudo`:
 
 1. `cp .env.example .env` to create your own version of all the environment variables needed for the project to work.
-1. Update `.env` to your specific needs. Don't forget to set `DB_USERNAME` and `DB_PASSWORD` with the settings used behind. You'll need to configure a [mailserver](/docs/installation/mail.md) for registration & reminders to work correctly.
+1. Update `.env` to your specific needs
+   - set `DB_USERNAME` and `DB_PASSWORD` with the settings used behind.
+   - configure a [mailserver](/docs/installation/mail.md) for registration & reminders to work correctly.
+   - set the `APP_ENV` variable to `production`, `local` is only used for the development version.
 1. Run `composer install --no-interaction --no-suggest --no-dev --ignore-platform-reqs` to install all packages.
 1. Run `php artisan key:generate` to generate an application key. This will set `APP_KEY` with the right value automatically.
 1. Run `php artisan setup:production -v` to run the migrations, seed the database and symlink folders.
