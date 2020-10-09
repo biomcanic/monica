@@ -21,6 +21,7 @@ use Illuminate\Support\Collection;
 use App\Models\Instance\SpecialDate;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use IlluminateAgnostic\Arr\Support\Arr;
 use App\Models\Account\ActivityStatistic;
 use App\Models\Relationship\Relationship;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,7 +35,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Contracts\Filesystem\FileNotFoundException;
 
 /**
- * @property \App\Models\Instance\SpecialDate $birthdate
+ * @property \App\Models\Instance\SpecialDate|null $birthdate
  */
 class Contact extends Model
 {
@@ -689,6 +690,37 @@ class Contact extends Model
                     $completeName = $completeName.' ('.$this->nickname.')';
                 }
                 break;
+            case 'nickname_firstname_lastname':
+                $completeName = $this->first_name;
+
+                if (! is_null($this->middle_name)) {
+                    $completeName = $completeName.' '.$this->middle_name;
+                }
+
+                if (! is_null($this->last_name)) {
+                    $completeName = $completeName.' '.$this->last_name;
+                }
+
+                if (! is_null($this->nickname)) {
+                    $completeName = $this->nickname.' ('.$completeName.')';
+                }
+                break;
+            case 'nickname_lastname_firstname':
+                $completeName = '';
+                if (! is_null($this->last_name)) {
+                    $completeName = $this->last_name.' ';
+                }
+
+                $completeName = $completeName.$this->first_name;
+
+                if (! is_null($this->middle_name)) {
+                    $completeName = $completeName.' '.$this->middle_name;
+                }
+
+                if (! is_null($this->nickname)) {
+                    $completeName = $this->nickname.' ('.$completeName.')';
+                }
+                break;
             case 'lastname_nickname_firstname':
                 $completeName = '';
                 if (! is_null($this->last_name)) {
@@ -964,7 +996,7 @@ class Contact extends Model
                 $avatarURL = $this->avatar_gravatar_url;
                 break;
             case 'photo':
-                $avatarURL = $this->avatarPhoto()->get()->first()->url();
+                $avatarURL = $this->avatarPhoto()->first()->url();
                 break;
             case 'default':
             default:
@@ -1038,6 +1070,7 @@ class Contact extends Model
 
     /**
      * Is this contact owed money?
+     *
      * @return bool
      */
     public function isOwedMoney()
@@ -1048,16 +1081,21 @@ class Contact extends Model
     /**
      * How much is the debt.
      *
-     * @return int
+     * @return int amount in storage value
      */
-    public function totalOutstandingDebtAmount()
+    public function totalOutstandingDebtAmount(): int
     {
         return $this
             ->debts()
-            ->where('status', '=', 'inprogress')
+            ->inProgress()
             ->getResults()
+            ->filter(function ($d) {
+                return Arr::has($d->attributes, 'amount');
+            })
             ->sum(function ($d) {
-                return $d->in_debt === 'yes' ? -$d->amount : $d->amount;
+                $amount = $d->attributes['amount'];
+
+                return $d->in_debt === 'yes' ? -$amount : $amount;
             });
     }
 
